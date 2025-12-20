@@ -7,7 +7,10 @@ const port = process.env.PORT || 3000
 // firebase service account
 const admin = require('firebase-admin')
 
-const serviceAccount = require('./simple-firebase-akm-2-firebase-adminsdk.json')
+// const serviceAccount = require('./simple-firebase-akm-2-firebase-adminsdk.json')
+
+const decoded = Buffer.from(process.env.FB_SERVICE_KEY, 'base64').toString('utf8')
+const serviceAccount = JSON.parse(decoded)
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
@@ -145,13 +148,13 @@ async function run() {
       res.send(result)
     })
 
-    // get individual ticket info for payment
-    // app.get('/tickets/:id', async (req, res) => {
-    //   const id = req.params.id
-    //   const query = { _id: new ObjectId(id) }
-    //   const result = await ticketsColl.findOne(query)
-    //   res.send(result)
-    // })
+    // get individual ticket info for booking
+    app.get('/tickets/:id', async (req, res) => {
+      const id = req.params.id
+      const query = { _id: new ObjectId(id) }
+      const result = await ticketsColl.findOne(query)
+      res.send(result)
+    })
 
     // make tickets approved / rejected by admin
 
@@ -199,7 +202,7 @@ async function run() {
     // })
 
     // get approved tickets for each vendors
-    app.get('/vendors/ticket-status', async (req, res) => {
+    app.get('/vendors/ticket-status', verifyFirebaseToken, verifyVendor, async (req, res) => {
       const email = req.query.email
 
       const pipeline = [
@@ -558,8 +561,8 @@ async function run() {
     })
 
     // Send a ping to confirm a successful connection
-    await client.db('admin').command({ ping: 1 })
-    console.log('Pinged your deployment. You successfully connected to MongoDB!')
+    // await client.db('admin').command({ ping: 1 })
+    // console.log('Pinged your deployment. You successfully connected to MongoDB!')
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close()
