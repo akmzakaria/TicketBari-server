@@ -124,6 +124,7 @@ async function run() {
       const { advertiseStatus } = req.query
       const { vendor_email } = req.query
       const { limit } = req.query
+      // const { role } = req.query
       const query = {}
 
       if (ticketStatus) {
@@ -135,6 +136,9 @@ async function run() {
       if (vendor_email) {
         query.vendor_email = vendor_email
       }
+      // if (role) {
+      //   query.role = { $ne: 'fraud' }
+      // }
 
       let cursor = ticketsColl.find(query).sort({ createdAt: -1 })
 
@@ -368,8 +372,16 @@ async function run() {
     })
 
     // get all the users
-    app.get('/users', verifyFirebaseToken, async (req, res) => {
-      const result = await usersColl.find().toArray()
+    app.get('/users', async (req, res) => {
+      const { role } = req.query
+
+      const query = {}
+
+      if (role) {
+        query.role = role
+      }
+
+      const result = await usersColl.find(query).toArray()
       res.send(result)
     })
 
