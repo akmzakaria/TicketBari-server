@@ -348,7 +348,7 @@ async function run() {
         query.userEmail = userEmail
       }
 
-      const result = await bookedTicketsColl.find(query).toArray()
+      const result = await bookedTicketsColl.find(query).sort({ bookedAt: -1 }).toArray()
       res.send(result)
     })
 
