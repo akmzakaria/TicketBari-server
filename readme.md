@@ -1,8 +1,3 @@
----
-
-## 📕 Backend `README.md`
-
-```md
 # 🎫 TicketGhor – Backend
 
 This repository contains the **backend** of the TicketGhor e-Ticket platform.  
