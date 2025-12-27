@@ -295,6 +295,7 @@ async function run() {
     // post booked tickets
     app.post('/booked-tickets', verifyFirebaseToken, async (req, res) => {
       const {
+        ticketId,
         title,
         image,
         bookingQty,
@@ -310,6 +311,7 @@ async function run() {
       } = req.body
 
       const result = bookedTicketsColl.insertOne({
+        ticketId,
         title,
         image,
         bookingQty,
@@ -417,6 +419,8 @@ async function run() {
       const paymentInfo = req.body
       const amount = Number(paymentInfo.totalPrice) * 100
 
+      // console.log(paymentInfo)
+
       const session = await stripe.checkout.sessions.create({
         line_items: [
           {
@@ -435,11 +439,15 @@ async function run() {
         mode: 'payment',
         metadata: {
           ticketId: paymentInfo.ticketId,
+          bookedTicketId: paymentInfo.bookedTicketId,
           title: paymentInfo.title,
+          bookingQty: paymentInfo.bookingQty,
+          // quantity: paymentInfo.quantity,
         },
         success_url: `${process.env.SITE_DOMAIN}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.SITE_DOMAIN}/payment-cancelled`,
       })
+
       // console.log(session)
       res.send({ url: session.url })
     })
@@ -497,9 +505,15 @@ async function run() {
     //   return res.send({ success: false })
     // })
 
+    // -----------------------------------------------------
+
     app.patch('/payment-success', async (req, res) => {
       try {
         const sessionId = req.query.session_id
+        // const quantity = Number(req.query.quantity)
+        // const bookingQty = Number(req.query.bookingQty)
+        // console.log(bookingQty)
+
         if (!sessionId) return res.status(400).send({ message: 'No session ID' })
 
         const session = await stripe.checkout.sessions.retrieve(sessionId)
@@ -512,29 +526,46 @@ async function run() {
 
         if (session.payment_status === 'paid') {
           const ticketId = session.metadata.ticketId
+          const bookedTicketId = session.metadata.bookedTicketId
+          const bookingQty = Number(session.metadata.bookingQty)
 
           const payment = {
             amount: session.amount_total / 100,
             currency: session.currency,
+            bookingQty: bookingQty,
+            // quantity: quantity,
             customer_email: session.customer_email,
             ticketId: ticketId,
+            bookedTicketId: bookedTicketId,
             title: session.metadata.title,
             transactionId: transactionId,
             paymentStatus: session.payment_status,
             paidAt: new Date(),
           }
 
+          console.log(payment)
+
           try {
             const resultPayment = await paymentColl.insertOne(payment)
 
-            const result = await bookedTicketsColl.updateOne(
-              { _id: new ObjectId(ticketId) },
+            await bookedTicketsColl.updateOne(
+              { _id: new ObjectId(bookedTicketId) },
               { $set: { bookingStatus: 'paid' } }
             )
+            const ticketResult = await ticketsColl.updateOne(
+              // { _id: new ObjectId(ticketId) },
+              {
+                _id: new ObjectId(ticketId),
+                quantity: { $gte: bookingQty },
+              },
+              { $inc: { quantity: -bookingQty } }
+            )
+
+            console.log(ticketResult)
 
             return res.send({
               success: true,
-              modifyTicket: result,
+              modifyTicket: ticketResult,
               paymentInfo: resultPayment,
               transactionId,
             })
